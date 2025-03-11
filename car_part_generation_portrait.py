@@ -187,7 +187,7 @@ def render_360(output_folder, key, output_node, radius: float=10, height: float=
         y = radius * math.sin(math.radians(angle + 90))
         camera.location.x = x
         camera.location.y = y
-        camera.location.z = random.uniform(height-0.3, height+ 0.1)
+        camera.location.z = random.uniform(height-0.4, height- 0.3)
         look_at(camera, Vector((0,0,0.15)))
         
         bpy.ops.render.render(write_still=True)
@@ -275,7 +275,7 @@ def process_dataset(dataset_root, output_base, num_frames=8):
                 last_rendered_frame = get_last_rendered_frame(vehicle_output_folder, key, num_frames)
                 
                 # Rendre les images
-                df = render_360(vehicle_output_folder, key, output_node, radius=math.sqrt(3), height=vehicle_center.z, 
+                df = render_360(vehicle_output_folder, key, output_node, radius=math.sqrt(1.1), height=vehicle_center.z, 
                            num_frames=num_frames, start_frame=last_rendered_frame, 
                            data_frame=df, light=light, color=chosen_color)
 
@@ -298,6 +298,10 @@ def main():
     #Transparent Shadow catcher - denoisiing off for 4.0 blender
     bpy.context.scene.cycles.use_denoising = False
     bpy.context.scene.render.film_transparent = True
+    
+    
+    bpy.context.scene.render.resolution_x = 608   # Largeur
+    bpy.context.scene.render.resolution_y = 1080  # Hauteur (portrait)
 
     output_base = "/home/yannou/OneDrive/Documents/deeplearning/data/output"
     dataset_root = "/home/yannou/OneDrive/Documents/deeplearning/data/car_3d"
