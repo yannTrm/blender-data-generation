@@ -28,7 +28,8 @@ def load_model(filepath: str, collection_name: str = "Vehicle") -> Optional[bpy.
     vehicle_collection = bpy.data.collections.new(collection_name)
     bpy.context.scene.collection.children.link(vehicle_collection)
 
-    bpy.ops.import_scene.obj(filepath=filepath)
+    bpy.ops.wm.obj_import(filepath=filepath) #for 4.3
+    # bpy.ops.import_scene.obj(filepath=filepath) #for 4.0
 
     imported_objects = bpy.context.selected_objects
     for obj in imported_objects:

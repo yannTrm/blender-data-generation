@@ -40,11 +40,17 @@ def setup_shadows_and_reflections(plane: bpy.types.Object, roughness: float = 0.
     bsdf_node = new_material.node_tree.nodes.get("Principled BSDF")
 
     if bsdf_node:
-        # Configure material properties
-        bsdf_node.inputs["Roughness"].default_value = roughness
-        bsdf_node.inputs["Specular"].default_value = specular
-        bsdf_node.inputs["Clearcoat"].default_value = clearcoat
-        bsdf_node.inputs["Clearcoat Roughness"].default_value = clearcoat_roughness
+        # # Configure material properties - for Blender 4.0
+        # bsdf_node.inputs["Roughness"].default_value = roughness
+        # bsdf_node.inputs["Specular"].default_value = specular
+        # bsdf_node.inputs["Clearcoat"].default_value = clearcoat
+        # bsdf_node.inputs["Clearcoat Roughness"].default_value = clearcoat_roughness
+
+        #For 4.3 Blender
+        bsdf_node.inputs[2].default_value = roughness
+        bsdf_node.inputs[13].default_value = specular
+        bsdf_node.inputs[21].default_value = clearcoat
+        bsdf_node.inputs[20].default_value = clearcoat_roughness
 
     plane.data.materials.append(new_material)
     print(f"✅ Shadows and reflections set up on the ground plane.")
