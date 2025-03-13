@@ -290,7 +290,6 @@ def main():
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete()
 
-    # Select GPU mode
     bpy.context.scene.render.engine = "CYCLES"
     bpy.context.preferences.addons["cycles"].preferences.compute_device_type = "CUDA"
     bpy.context.scene.cycles.device = "GPU"
