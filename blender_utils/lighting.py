@@ -54,3 +54,4 @@ def setup_shadows_and_reflections(plane: bpy.types.Object, roughness: float = 0.
 
     plane.data.materials.append(new_material)
     print(f"✅ Shadows and reflections set up on the ground plane.")
+    return bsdf_node
