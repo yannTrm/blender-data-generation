@@ -84,8 +84,8 @@ def prepare_model(filepath: str, target_size: float = 1.0, collection_name: str 
     light.data.use_shadow = False #No shadow
 
     ground_plane = add_ground_plane(Vector((0, 0, 0)), 0)
-    bsdf_node = setup_shadows_and_reflections(ground_plane, roughness=0.0, specular=0.9, clearcoat=12, clearcoat_roughness=0.1)
-    
+    bsdf_node = setup_shadows_and_reflections(ground_plane, roughness=0.1, specular=0.9, clearcoat=12, clearcoat_roughness=0.1)
+
     bsdf_node.inputs[2].default_value = 0.0
     bsdf_node.inputs[19].default_value = 0.9
     bsdf_node.inputs[21].default_value = 12
