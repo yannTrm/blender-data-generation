@@ -81,7 +81,7 @@ def prepare_model(filepath: str, target_size: float = 1.0, collection_name: str 
 
     light_height = max_corner.z + 10
     light = add_light_source(location=Vector((vehicle_center.x, vehicle_center.y, light_height)), intensity=800, shadow_soft_size=7)
-    light.data.use_shadow = False #No shadow
+    light.data.use_shadow = True #No shadow
 
     ground_plane = add_ground_plane(Vector((0, 0, 0)), 0)
     bsdf_node = setup_shadows_and_reflections(ground_plane, roughness=0.1, specular=0.9, clearcoat=12, clearcoat_roughness=0.1)
