@@ -286,7 +286,6 @@ def process_dataset(dataset_root, output_base, num_frames=8):
 
 
 def main():
-    #Clear default objects
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete()
 
