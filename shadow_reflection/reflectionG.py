@@ -84,11 +84,18 @@ def prepare_model(filepath: str, target_size: float = 1.0, collection_name: str 
     light.data.use_shadow = False #No shadow
 
     ground_plane = add_ground_plane(Vector((0, 0, 0)), 0)
-    bsdf_node = setup_shadows_and_reflections(ground_plane, roughness=0.1, specular=0.9, clearcoat=12, clearcoat_roughness=0.1)
+    # bsdf_node = setup_shadows_and_reflections(ground_plane, roughness=0.0, specular=0.9, clearcoat=12, clearcoat_roughness=0.1)
 
-    bsdf_node.inputs[2].default_value = 0.0
-    bsdf_node.inputs[19].default_value = 0.9
-    bsdf_node.inputs[21].default_value = 12
+    new_material = bpy.data.materials.new(name="GroundMaterial")
+    new_material.use_nodes = True  # Enable node-based materials
+
+    # Get the Principled BSDF node
+    bsdf_node = new_material.node_tree.nodes.new("ShaderNodeBsdfGlossy")
+    output_node = new_material.node_tree.nodes.get("Material Output")
+    new_material.node_tree.nodes.remove(new_material.node_tree.nodes.get("Principled BSDF"))
+    new_material.node_tree.links.new(bsdf_node.outputs[0], output_node.inputs[0])
+    bsdf_node.inputs[1].default_value = 0.275
+    ground_plane.data.materials.append(new_material)
 
     # Positionner la caméra
     camera_distance = 2
@@ -101,7 +108,7 @@ def prepare_model(filepath: str, target_size: float = 1.0, collection_name: str 
     
     return vehicle_collection, light, camera, chosen_color, vehicle_center
 
-def car_segmentation_mask_assign(collection_name: str="Vehicle"):
+def car_segmentation_mask_assign(collection_name: str="Vehicle", color=None):
     bpy.context.scene.view_layers["ViewLayer"].use_pass_object_index = True
     if collection_name in bpy.data.collections:
         vehicle_collection = bpy.data.collections.get(collection_name)
@@ -148,7 +155,8 @@ def car_segmentation_mask_assign(collection_name: str="Vehicle"):
 
 def render_360(output_folder, key, output_node, radius: float=10, height: float=3, 
                num_frames: int=180, start_frame: int=0, loop: int=0,
-               data_frame: pd.DataFrame=None, light=None, color=None):
+               data_frame: pd.DataFrame=None, light=None, color=None,
+               vehicle_collection=None) -> pd.DataFrame:
     """
     Renders 360-degree images at 2-degree intervals.
     :param output_folder: Directory to save rendered images.
@@ -157,7 +165,7 @@ def render_360(output_folder, key, output_node, radius: float=10, height: float=
     :param num_frames: Number of images to render (default: 180 for 360° at 2° steps).
     """
     camera = bpy.data.objects.get("SceneCamera")
-    
+    colors = get_common_car_colors()
     if not camera:
         print("❌ No camera found. Exiting rendering.")
         return
@@ -166,6 +174,13 @@ def render_360(output_folder, key, output_node, radius: float=10, height: float=
         os.makedirs(output_folder + "/img")
     if not os.path.exists(output_folder + "/mask"):
         os.makedirs(output_folder + "/mask")
+
+    for mat in bpy.data.materials:
+        if "rim" in mat.name.lower():
+            mat.use_nodes = True
+            bsdf_node = mat.node_tree.nodes.get("Principled BSDF")
+            if bsdf_node:
+                bsdf_node.inputs[0].default_value = (0.75, 0.75, 0.75, 1.0) # grey
 
     for i in range(start_frame, num_frames):
         frame_output = os.path.join(output_folder, f"img/{key}_{loop}{i:03d}.png")
@@ -185,16 +200,40 @@ def render_360(output_folder, key, output_node, radius: float=10, height: float=
         look_at(camera, Vector((0,0,0.15)))
         
         bpy.ops.render.render(write_still=True)
+        # os.rename(output_folder + "/mask" + f"/{loop}{i:03d}_mask_1.png", output_folder + "/mask" + f"/{key}_{loop}{i:03d}.png")
+
+        for mat in bpy.data.materials:
+            if "carpaint" in mat.name.lower():
+                mat.use_nodes = True
+                bsdf_node = mat.node_tree.nodes.get("Principled BSDF")
+                if bsdf_node:
+                    bsdf_node.inputs[0].default_value = (0.0, 0.0, 0.0, 1.0) # Black
+
+        frame_output = os.path.join(output_folder, f"img_for_reflection/{key}_{loop}{i:03d}.png")
+        bpy.context.scene.render.filepath = frame_output
+        bpy.ops.render.render(write_still=True)
+
         os.rename(output_folder + "/mask" + f"/{loop}{i:03d}_mask_1.png", output_folder + "/mask" + f"/{key}_{loop}{i:03d}.png")
+        chosen_color = random.choice(colors)
+        for mat in bpy.data.materials:
+            if "carpaint" in mat.name.lower():
+                mat.use_nodes = True
+                bsdf_node = mat.node_tree.nodes.get("Principled BSDF")
+                if bsdf_node:
+                    bsdf_node.inputs[0].default_value = chosen_color
+
         print(f"✅ Rendered frame {i+1}/{num_frames}: {frame_output}")
         
         new_row = pd.DataFrame([{
-            'file_name': f"/{key}_{i:03d}.png",
+            'file_name': f"/{key}_{loop}{i:03d}.png",
+            'key': key,
+            'frame': i,
+            'loop': loop,
             'folder': os.path.basename(output_folder),
             'x_angle': math.degrees(camera.rotation_euler.x),  
             'y_angle': math.degrees(camera.rotation_euler.y),  
             'z_angle': math.degrees(camera.rotation_euler.z),  
-            'color': color,  
+            'color': chosen_color,  
             'distance': radius,  
             'height': camera.location.z,  
             'light_intensity': light.data.energy  
@@ -223,13 +262,16 @@ def get_last_rendered_frame(output_base, key, num_frames):
 
 def process_dataset(dataset_root, output_base, num_frames=8, loop = 0):
     # Parcourir tous les sous-dossiers et fichiers dans dataset_root
-    df = pd.DataFrame(columns=['file_name', 'folder', 'x_angle', 'y_angle', 'z_angle', 'color', 'distance', 'height', 'light_intensity'])
+    
     for root, dirs, files in os.walk(dataset_root):
         for file in files:
-            if file.endswith(".obj"):
+            if file.endswith("DONE.obj"):
+                df = pd.DataFrame(columns=['file_name', 'key', 'frame', 'loop',
+                                           'folder', 'x_angle', 'y_angle', 
+                                           'z_angle', 'color', 'distance', 'height', 'light_intensity'])
                 # Chemin complet du fichier .obj
                 obj_path = os.path.join(root, file)
-                
+
                 # Créer un dossier de sortie basé sur le nom du sous-dossier (véhicule)
                 relative_path = os.path.relpath(root, dataset_root)
                 vehicle_output_folder = output_base
@@ -266,13 +308,18 @@ def process_dataset(dataset_root, output_base, num_frames=8, loop = 0):
                 # Trouver la dernière frame rendue
                 last_rendered_frame = get_last_rendered_frame(vehicle_output_folder, key, num_frames)
                 
-                # Rendre les images
-                df = render_360(vehicle_output_folder, key, output_node, radius=math.sqrt(3), height=vehicle_center.z, 
-                           num_frames=num_frames, start_frame=last_rendered_frame, loop=loop,
-                           data_frame=df, light=light, color=chosen_color)
+                # # Rendre les images
+                # df = render_360(vehicle_output_folder, key, output_node, radius=math.sqrt(3), height=vehicle_center.z, 
+                #            num_frames=num_frames, start_frame=last_rendered_frame, loop=loop,
+                #            data_frame=df, light=light, color=chosen_color, vehicle_collection = vehicle_collection)
+                # print(f"✅ Finished processing {file} in {relative_path}")
+                return
+                if os.path.exists(os.path.join(output_base, "metadata.csv")):
+                    old_df = pd.read_csv(os.path.join(output_base, "metadata.csv"))
+                    df = pd.concat([old_df, df], ignore_index=True)
+                df.to_csv(os.path.join(output_base, "metadata.csv"), index=False)
+                print(f"✅ Metadata saved to {output_base}/metadata.csv")
 
-                print(f"✅ Finished processing {file} in {relative_path}")
-    df.to_csv(os.path.join(output_base, "metadata.csv"), index=False)
     print("✅ All files processed.")
 
 def main():
@@ -289,12 +336,12 @@ def main():
     bpy.context.scene.cycles.use_denoising = True
     bpy.context.scene.render.film_transparent = True
 
-    output_base = "/Users/dattrongnguyen/Documents/output/reflection"
+    output_base = "/Users/dattrongnguyen/Documents/output/"
     dataset_root = "/Users/dattrongnguyen/Documents/blenderTest/3d_models_SEB"
 
     loop = 4
     for i in range(loop):
-        process_dataset(dataset_root, output_base, num_frames=180, loop = i)       
+        process_dataset(dataset_root, output_base, num_frames=64, loop = i)       
     
 if __name__ == "__main__":
     main()
