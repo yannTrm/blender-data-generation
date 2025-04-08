@@ -5,3 +5,9 @@ To run:
 ```bash
 blender --python script.py
 ```
+
+to check which python blender is using on MacOS:
+```bash
+blender -b --python-expr "import sys; print(sys.executable)"
+```
+
