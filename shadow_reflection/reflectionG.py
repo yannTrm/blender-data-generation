@@ -308,12 +308,12 @@ def process_dataset(dataset_root, output_base, num_frames=8, loop = 0):
                 # Trouver la dernière frame rendue
                 last_rendered_frame = get_last_rendered_frame(vehicle_output_folder, key, num_frames)
                 
-                # # Rendre les images
-                # df = render_360(vehicle_output_folder, key, output_node, radius=math.sqrt(3), height=vehicle_center.z, 
-                #            num_frames=num_frames, start_frame=last_rendered_frame, loop=loop,
-                #            data_frame=df, light=light, color=chosen_color, vehicle_collection = vehicle_collection)
-                # print(f"✅ Finished processing {file} in {relative_path}")
-                return
+                # Rendre les images
+                df = render_360(vehicle_output_folder, key, output_node, radius=math.sqrt(3), height=vehicle_center.z, 
+                           num_frames=num_frames, start_frame=last_rendered_frame, loop=loop,
+                           data_frame=df, light=light, color=chosen_color, vehicle_collection = vehicle_collection)
+                print(f"✅ Finished processing {file} in {relative_path}")
+
                 if os.path.exists(os.path.join(output_base, "metadata.csv")):
                     old_df = pd.read_csv(os.path.join(output_base, "metadata.csv"))
                     df = pd.concat([old_df, df], ignore_index=True)
